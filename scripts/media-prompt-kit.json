@@ -1,0 +1,395 @@
+{
+ "materials": [
+  {
+   "name": "Sideboard Walnut",
+   "color": "#5C4033",
+   "pattern": "wood",
+   "finish": "satin",
+   "roughness": 0.5
+  }
+ ],
+ "definitions": [
+  {
+   "name": "Sideboard walnut",
+   "category": "Living",
+   "size": {
+    "width": 1800,
+    "depth": 450,
+    "height": 750
+   },
+   "components": [
+    {
+     "name": "plinth",
+     "shape": "box",
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 40
+     },
+     "size": {
+      "width": 1700,
+      "depth": 340,
+      "height": 80
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "side_left",
+     "shape": "panel",
+     "position": {
+      "x": -871,
+      "y": 0,
+      "z": 403
+     },
+     "size": {
+      "width": 18,
+      "depth": 380,
+      "height": 646
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "side_right",
+     "shape": "panel",
+     "position": {
+      "x": 871,
+      "y": 0,
+      "z": 403
+     },
+     "size": {
+      "width": 18,
+      "depth": 380,
+      "height": 646
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "bottom",
+     "shape": "panel",
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 89
+     },
+     "size": {
+      "width": 1724,
+      "depth": 380,
+      "height": 18
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "back",
+     "shape": "panel",
+     "position": {
+      "x": 0,
+      "y": 184,
+      "z": 403
+     },
+     "size": {
+      "width": 1724,
+      "depth": 12,
+      "height": 646
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "shelf_top",
+     "shape": "panel",
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 738
+     },
+     "size": {
+      "width": 1800,
+      "depth": 450,
+      "height": 24
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "drawer_top",
+     "shape": "panel",
+     "position": {
+      "x": 0,
+      "y": -199,
+      "z": 620
+     },
+     "size": {
+      "width": 1752,
+      "depth": 18,
+      "height": 204
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "drawer_mid",
+     "shape": "panel",
+     "position": {
+      "x": 0,
+      "y": -199,
+      "z": 412
+     },
+     "size": {
+      "width": 1752,
+      "depth": 18,
+      "height": 204
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "drawer_bottom",
+     "shape": "panel",
+     "position": {
+      "x": 0,
+      "y": -199,
+      "z": 204
+     },
+     "size": {
+      "width": 1752,
+      "depth": 18,
+      "height": 204
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "knob_top",
+     "shape": "sphere",
+     "position": {
+      "x": 0,
+      "y": -210,
+      "z": 620
+     },
+     "size": {
+      "width": 30,
+      "depth": 30,
+      "height": 30
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "knob_mid",
+     "shape": "sphere",
+     "position": {
+      "x": 0,
+      "y": -210,
+      "z": 412
+     },
+     "size": {
+      "width": 30,
+      "depth": 30,
+      "height": 30
+     },
+     "material": "Sideboard Walnut"
+    },
+    {
+     "name": "knob_bottom",
+     "shape": "sphere",
+     "position": {
+      "x": 0,
+      "y": -210,
+      "z": 204
+     },
+     "size": {
+      "width": 30,
+      "depth": 30,
+      "height": 30
+     },
+     "material": "Sideboard Walnut"
+    }
+   ]
+  },
+  {
+   "name": "Writing desk birch",
+   "category": "Office",
+   "size": {
+    "width": 1400,
+    "depth": 700,
+    "height": 750
+   },
+   "components": [
+    {
+     "name": "top",
+     "shape": "panel",
+     "position": {
+      "x": 0,
+      "y": 0,
+      "z": 738
+     },
+     "size": {
+      "width": 1400,
+      "depth": 700,
+      "height": 24
+     },
+     "material": "Birch"
+    },
+    {
+     "name": "leg_left_front",
+     "shape": "box",
+     "position": {
+      "x": -670,
+      "y": -320,
+      "z": 363
+     },
+     "size": {
+      "width": 40,
+      "depth": 40,
+      "height": 726
+     },
+     "material": "White lacquer"
+    },
+    {
+     "name": "leg_left_back",
+     "shape": "box",
+     "position": {
+      "x": -670,
+      "y": 320,
+      "z": 363
+     },
+     "size": {
+      "width": 40,
+      "depth": 40,
+      "height": 726
+     },
+     "material": "White lacquer"
+    },
+    {
+     "name": "pedestal_side_left",
+     "shape": "panel",
+     "position": {
+      "x": 300,
+      "y": 0,
+      "z": 363
+     },
+     "size": {
+      "width": 20,
+      "depth": 640,
+      "height": 726
+     },
+     "material": "White lacquer"
+    },
+    {
+     "name": "pedestal_side_right",
+     "shape": "panel",
+     "position": {
+      "x": 680,
+      "y": 0,
+      "z": 363
+     },
+     "size": {
+      "width": 20,
+      "depth": 640,
+      "height": 726
+     },
+     "material": "White lacquer"
+    },
+    {
+     "name": "pedestal_bottom",
+     "shape": "panel",
+     "position": {
+      "x": 490,
+      "y": 0,
+      "z": 10
+     },
+     "size": {
+      "width": 360,
+      "depth": 640,
+      "height": 20
+     },
+     "material": "White lacquer"
+    },
+    {
+     "name": "pedestal_top",
+     "shape": "panel",
+     "position": {
+      "x": 490,
+      "y": 0,
+      "z": 716
+     },
+     "size": {
+      "width": 360,
+      "depth": 640,
+      "height": 20
+     },
+     "material": "White lacquer"
+    },
+    {
+     "name": "pedestal_back",
+     "shape": "panel",
+     "position": {
+      "x": 490,
+      "y": 315,
+      "z": 363
+     },
+     "size": {
+      "width": 360,
+      "depth": 10,
+      "height": 686
+     },
+     "material": "White lacquer"
+    },
+    {
+     "name": "drawer_front_top",
+     "shape": "panel",
+     "position": {
+      "x": 490,
+      "y": -329,
+      "z": 533
+     },
+     "size": {
+      "width": 400,
+      "depth": 18,
+      "height": 340
+     },
+     "material": "White lacquer"
+    },
+    {
+     "name": "drawer_front_bottom",
+     "shape": "panel",
+     "position": {
+      "x": 490,
+      "y": -329,
+      "z": 190
+     },
+     "size": {
+      "width": 400,
+      "depth": 18,
+      "height": 340
+     },
+     "material": "White lacquer"
+    },
+    {
+     "name": "knob_top",
+     "shape": "sphere",
+     "position": {
+      "x": 490,
+      "y": -342,
+      "z": 533
+     },
+     "size": {
+      "width": 25,
+      "depth": 25,
+      "height": 25
+     },
+     "material": "Black metal"
+    },
+    {
+     "name": "knob_bottom",
+     "shape": "sphere",
+     "position": {
+      "x": 490,
+      "y": -342,
+      "z": 190
+     },
+     "size": {
+      "width": 25,
+      "depth": 25,
+      "height": 25
+     },
+     "material": "Black metal"
+    }
+   ]
+  }
+ ]
+}
