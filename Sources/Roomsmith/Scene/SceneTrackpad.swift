@@ -53,14 +53,14 @@ enum ScrollAction: Equatable {
 /// Pure mapping of input to camera actions (no AppKit objects, so it can be checked without events).
 enum TrackpadMapping {
     /// Two-finger scroll or wheel. `precise` is `hasPreciseScrollingDeltas` (trackpad, Magic Mouse).
-    /// - Orbit: scroll orbits, shift pans. Top: pan. First person and free: look (shift: shuffle or slide).
+    /// - Orbit: scroll orbits, shift pans. Top: pan. First person and free: look (shift is walking speed there, so it never changes the turn).
     /// - Command + scroll and every wheel without precise deltas zoom.
     static func scrollAction(mode: CameraMode, precise: Bool, shift: Bool, command: Bool) -> ScrollAction {
         if !precise || command { return .dolly }
         switch mode {
         case .orbit: return shift ? .pan : .orbit
         case .top: return .pan
-        case .firstPerson, .free: return shift ? .pan : .look
+        case .firstPerson, .free: return .look
         }
     }
 
@@ -257,9 +257,10 @@ enum SceneSelfTest {
         check("scroll-wheel-zoom", TrackpadMapping.scrollAction(mode: .top, precise: false, shift: false, command: false) == .dolly)
         check("scroll-first-person-look", TrackpadMapping.scrollAction(mode: .firstPerson, precise: true, shift: false, command: false) == .look)
 
-        // 10b. Free: scroll looks (shift slides), pinch flies along the ray / forward, the eye is the target.
+        // 10b. Free: scroll looks (shift too), pinch flies along the ray / forward, the eye is the target.
         check("scroll-free-look", TrackpadMapping.scrollAction(mode: .free, precise: true, shift: false, command: false) == .look)
-        check("scroll-free-shift-pan", TrackpadMapping.scrollAction(mode: .free, precise: true, shift: true, command: false) == .pan)
+        check("scroll-free-shift-look", TrackpadMapping.scrollAction(mode: .free, precise: true, shift: true, command: false) == .look)
+        check("scroll-first-person-shift-look", TrackpadMapping.scrollAction(mode: .firstPerson, precise: true, shift: true, command: false) == .look)
         do {
             let c = controller(.free, yaw: 0, pitch: 30)
             let eye0 = c.rig.eye

@@ -136,7 +136,7 @@ Pinch, rotate and smart zoom are ignored while a mouse button is down (drag, han
 | Input | Orbit / Aerial | Top | Free | First person |
 |---|---|---|---|---|
 | Two-finger scroll | Orbit around the target | Pan | Look around | Look around |
-| ⇧ + two-finger scroll | Pan | Pan | Slide (in the view plane) | Pan |
+| ⇧ + two-finger scroll | Pan | Pan | Look around (⇧ is walking speed, so the turn is unchanged) | Look around (same) |
 | Pinch | Zoom toward the pointer (the picked surface, else the ground at target height stays under it) | same | Fly along the ray under the pointer | Walk forward / back |
 | Two-finger rotate | Yaw around the target | same | Turn on the spot | same as Orbit |
 | Smart zoom (two-finger double tap) | Frame the selection, else everything | same | Look at the selection / everything from here | same as Orbit |
