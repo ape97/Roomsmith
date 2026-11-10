@@ -9,16 +9,16 @@ struct LightPanel: View {
 
     private var light: LightingSettings { model.project.settings.lighting }
 
-    /// Measured height of the controls; the popover is exactly that tall, or scrolls when the window or screen is
-    /// shorter, so no control is ever cut off.
-    @State private var contentHeight: CGFloat = 320
+    /// Measured size of the controls. The popover is exactly that wide (the mood buttons decide the width, at least
+    /// 300 pt) and that tall, or scrolls when the window or screen is shorter, so no control is ever cut off.
+    @State private var contentSize = CGSize(width: 300, height: 320)
 
     var body: some View {
         ScrollView {
-            controls.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+            controls.onGeometryChange(for: CGSize.self) { $0.size } action: { contentSize = $0 }
         }
         .scrollBounceBehavior(.basedOnSize)
-        .frame(width: 300, height: min(contentHeight, Self.maxHeight))
+        .frame(width: contentSize.width, height: min(contentSize.height, Self.maxHeight))
     }
 
     private static var maxHeight: CGFloat {
@@ -79,8 +79,9 @@ struct LightPanel: View {
                 .help("Shadows cast by the sun. Lamps never cast shadows.")
                 .accessibilityIdentifier("light.shadows")
         }
+        .frame(minWidth: 272, alignment: .leading)
         .padding(14)
-        .frame(width: 300)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var moodBinding: Binding<LightMood> {
