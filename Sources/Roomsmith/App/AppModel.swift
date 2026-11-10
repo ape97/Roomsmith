@@ -117,6 +117,15 @@ public final class AppModel: Identifiable {
     public var wallOpacity: Double { get { prefs.wallOpacity } set { prefs.wallOpacity = newValue } }
     /// Selected tab of the sidebar. Remembered between launches.
     var sidebarTab: SidebarTab { get { prefs.sidebarTab } set { prefs.sidebarTab = newValue } }
+    /// Live lighting while a Light slider is dragged: shown by the 3D views, never saved and not undoable. The slider
+    /// commits one undoable command on release and clears it.
+    var lightPreview: LightingSettings?
+    func previewLight(_ value: Double?, _ apply: (inout LightingSettings, Double) -> Void) {
+        guard let value else { lightPreview = nil; return }
+        var s = lightPreview ?? project.settings.lighting
+        apply(&s, value)
+        if s != lightPreview { lightPreview = s }
+    }
     /// Pending request for the plan editor to move its viewport (agent `view.set`). The editor applies a request once
     /// (by serial) and ignores requests that were made while it was not shown.
     var planViewRequest: PlanViewRequest?

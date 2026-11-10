@@ -65,6 +65,7 @@ final class SceneRenderer {
     var lastActiveLevel: UUID
     var lastFrameRequest: Int
     var lastFileURL: URL?
+    var lastLightPreview: LightingSettings?
     var selectedExpanded: Set<UUID> = []
     var hoveredExpanded: Set<UUID> = []
     var colliding: Set<UUID> = []
@@ -983,6 +984,7 @@ final class SceneRenderer {
             _ = model.activeLevelId
             _ = model.frameSelectionRequest
             _ = model.fileURL
+            _ = model.lightPreview
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self, !self.stopped else { return }
@@ -993,6 +995,10 @@ final class SceneRenderer {
     }
 
     private func modelChanged() {
+        if model.lightPreview != lastLightPreview {
+            lastLightPreview = model.lightPreview
+            applyLighting()
+        }
         refreshSelectionTints()
         if handActive != lastHandActive { handModeDidChange() }
         if measureActive != lastMeasureActive { measureToolDidChange() }

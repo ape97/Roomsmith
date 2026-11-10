@@ -35,7 +35,7 @@ extension SceneRenderer {
     /// Applies sun, sky, ground and lamps. Cheap when nothing changed.
     func applyLighting(force: Bool = false) {
         let p = model.project
-        let settings = p.settings.lighting
+        let settings = model.lightPreview ?? p.settings.lighting
         let lamps = LightRig.collect(p, levelVisible: { [weak self] in self?.levelShown($0) ?? true }).active
         let now = AppliedLook(settings: settings, dark: lastDark, lamps: lamps)
         if !force, now == appliedLook { return }

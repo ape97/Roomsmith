@@ -57,6 +57,7 @@ Overall: **feature complete, pre-release, not published.** All work packages bel
 ## Known limits
 
 - The sidebar library shows only your own furniture plus 5 built-in examples (`BuiltinCatalog.exampleKeys`); the rest of the built-in catalog is reachable only through agent tools. The "New" badge for agent additions (objects and library entries) lives in memory only and is not seen in a running app yet: the SwiftUI side is verified by build, the logic by tests.
+- The Light panel sliders (time, day, north, latitude, exposure) preview live in the 3D view while dragging (`AppModel.lightPreview`, not saved, not undoable) and commit one undoable command on release. The offscreen renderer ignores the preview. Not yet tried by hand in the running app; lamp sliders in the inspector still commit only on release.
 - Lamp brightness is estimated, not calibrated: `lumens` is mapped to a RealityKit intensity with one gain factor (`lampGain` in `Scene/SceneRenderer+Light.swift`) chosen by eye.
 - The "Lamps" display option only affects the 3D view (picture, picking, walk collision); the plan still draws lamp furniture. The click on the toggle itself was not tried, only the offscreen pictures with `ROOMSMITH_SHOW_LAMPS=0|1`.
 - Lamps cast no shadows (RealityKit point lights); light passes through walls and furniture. Only the sun casts shadows.

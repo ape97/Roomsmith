@@ -43,26 +43,36 @@ struct LightPanel: View {
                          text: { String(format: "%02d:%02d", Int($0) / 60, Int($0) % 60) },
                          hint: "Time of day (local solar time); moves the sun and its shadows") { v in
                 model.perform("Set time of day") { $0.updateLighting { $0.timeMinutes = Int(v) } }
+            } preview: { v in
+                model.previewLight(v) { s, v in s.timeMinutes = Int(v) }
             }
             CommitSlider(title: "Day", value: Double(light.dayOfYear), range: 1...366, step: 1,
                          text: { "day \(Int($0))" },
                          hint: "Day of the year (1 = 1 January, 172 = midsummer); sets the sun's height") { v in
                 model.perform("Set day of year") { $0.updateLighting { $0.dayOfYear = Int(v) } }
+            } preview: { v in
+                model.previewLight(v) { s, v in s.dayOfYear = Int(v) }
             }
             CommitSlider(title: "North", value: light.northDeg, range: LightingSettings.northRange, step: 1,
                          text: { String(format: "%.0f°", $0) },
                          hint: "Where north lies in the plan, counter-clockwise from the plan's up direction") { v in
                 model.perform("Set north") { $0.updateLighting { $0.northDeg = v } }
+            } preview: { v in
+                model.previewLight(v) { s, v in s.northDeg = v }
             }
             CommitSlider(title: "Latitude", value: light.latitudeDeg, range: LightingSettings.latitudeRange, step: 1,
                          text: { String(format: "%.0f°", $0) },
                          hint: "Latitude of the site (positive = north); sets how high the sun climbs") { v in
                 model.perform("Set latitude") { $0.updateLighting { $0.latitudeDeg = v } }
+            } preview: { v in
+                model.previewLight(v) { s, v in s.latitudeDeg = v }
             }
             CommitSlider(title: "Exposure", value: light.exposure, range: -3...3, step: 0.25,
                          text: { String(format: "%+.2f EV", $0) },
                          hint: "Overall brightness of the picture in EV stops") { v in
                 model.perform("Set exposure") { $0.updateLighting { $0.exposure = v } }
+            } preview: { v in
+                model.previewLight(v) { s, v in s.exposure = v }
             }
             Toggle("Sun shadows", isOn: shadowsBinding)
                 .help("Shadows cast by the sun. Lamps never cast shadows.")
@@ -96,7 +106,10 @@ struct CommitSlider: View {
     var logScale = false
     let hint: String
     let onCommit: (Double) -> Bool
+    /// Called with every value while dragging and with nil when the drag ends (live preview, not undoable).
+    var preview: ((Double?) -> Void)?
     @State private var draft = 0.0
+    @State private var dragging = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -112,12 +125,17 @@ struct CommitSlider: View {
         }
         .onAppear { draft = value }
         .onChange(of: value) { _, new in draft = new }
+        .onChange(of: draft) { _, new in if dragging { preview?(new) } }
+        .onDisappear { if dragging { dragging = false; preview?(nil) } }
     }
 
     /// Log scale lets one slider cover ranges like 1...100000 lm; the shown value stays the real one.
     @ViewBuilder private var slider: some View {
         let finish: (Bool) -> Void = { editing in
-            if !editing, draft != value, !onCommit(draft) { draft = value }
+            dragging = editing
+            if editing { return }
+            if draft != value, !onCommit(draft) { draft = value }
+            preview?(nil)
         }
         if logScale {
             let lo = log(max(range.lowerBound, 1e-6)), hi = log(range.upperBound)
