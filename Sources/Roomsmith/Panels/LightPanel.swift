@@ -9,23 +9,24 @@ struct LightPanel: View {
 
     private var light: LightingSettings { model.project.settings.lighting }
 
-    /// A popover is as tall as its content and is cut off at the screen edge. Normally the controls show as they are; on
-    /// a screen too short for them they sit in a scroll view so every control stays reachable.
+    /// Measured height of the controls; the popover is exactly that tall, or scrolls when the window or screen is
+    /// shorter, so no control is ever cut off.
+    @State private var contentHeight: CGFloat = 320
+
     var body: some View {
-        if Self.maxHeight < Self.naturalHeight {
-            ScrollView { controls }
-                .frame(width: 300, height: Self.maxHeight)
-        } else {
-            controls
+        ScrollView {
+            controls.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
         }
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(width: 300, height: min(contentHeight, Self.maxHeight))
     }
 
-    /// Height of the controls laid out (measured 310 pt); only decides whether the scroll view is needed.
-    private static let naturalHeight: CGFloat = 320
-
     private static var maxHeight: CGFloat {
-        let screen = NSScreen.main?.visibleFrame.height ?? 700
-        return max(200, screen - 160)
+        // The screen and window the popover belongs to (not the main screen: the window may sit on a smaller one).
+        let window = NSApp.keyWindow ?? NSApp.mainWindow
+        let screen = (window?.screen ?? NSScreen.main)?.visibleFrame.height ?? 700
+        let inWindow = window.map { $0.frame.height - 90 } ?? screen
+        return max(200, min(screen - 160, inWindow))
     }
 
     private var controls: some View {
