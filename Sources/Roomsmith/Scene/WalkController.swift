@@ -263,8 +263,8 @@ final class WalkController {
         setOpening(id, mode: .turn, open: open) != .closed
     }
 
-    /// The closest openable door or window in front of the eye within reach: id, or nil.
-    func nearestOpenableInView() -> UUID? {
+    /// The closest openable door or window in front of the eye within reach: id and distance, or nil.
+    func nearestOpenableInView() -> (id: UUID, distance: Double)? {
         let p = renderer.model.project
         let rig = renderer.camera.rig
         let eye = V2(rig.target.x, rig.target.y)
@@ -295,13 +295,30 @@ final class WalkController {
             if len > 400, simd_dot(toMid / len, fwd) < 0.34 { continue }
             if best == nil || dist < best!.1 { best = (o.id, dist) }
         }
-        return best?.0
+        return best.map { (id: $0.0, distance: $0.1) }
     }
 
-    /// Works the opening in view: turn, or tilt when `tilt` is set (doors only turn).
+    /// The closest furniture piece with several states in front of the eye within reach.
+    func nearestStateFurnitureInView() -> (id: UUID, distance: Double)? {
+        let rig = renderer.camera.rig
+        return WalkFurnitureState.nearest(project: renderer.model.project, levelId: renderer.model.activeLevelId,
+                                          eye: V2(rig.target.x, rig.target.y), forward: V2(rig.flatForward.x, rig.flatForward.y),
+                                          reachMm: Self.doorReach)
+    }
+
+    /// Works the nearest target in view: an opening turns (or tilts when `tilt` is set; doors only turn), a furniture piece
+    /// with several states switches to its next state through the command engine (undoable). The nearer one wins; a tie goes
+    /// to the opening.
     @discardableResult
     func toggleNearestOpening(tilt: Bool = false) -> Bool {
-        guard let id = nearestOpenableInView() else { return false }
+        let opening = nearestOpenableInView()
+        if let furniture = nearestStateFurnitureInView(), opening.map({ furniture.distance < $0.distance }) ?? true {
+            let p = renderer.model.project
+            guard let inst = p.instance(furniture.id), let def = p.definition(inst.definitionId),
+                  let next = WalkFurnitureState.nextStateId(for: inst, definition: def) else { return false }
+            return renderer.model.perform("Change State") { try $0.activateState([furniture.id], stateId: next) }
+        }
+        guard let id = opening?.id else { return false }
         let isDoor = renderer.model.project.opening(id)?.kind == .door
         setOpening(id, mode: tilt && !isDoor ? .tilt : .turn, open: nil)
         return true

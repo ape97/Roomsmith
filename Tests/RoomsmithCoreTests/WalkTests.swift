@@ -588,3 +588,88 @@ struct WalkToolTests {
         #expect(WalkPassThrough.settled(inside, collider: c, setting: false) == inside)
     }
 }
+
+// MARK: - Furniture states with E
+
+@Suite("WalkFurnitureState") struct WalkFurnitureStateTests {
+    private func wardrobe(states: Int) -> FurnitureDefinition {
+        var d = boxDef(1000, 500, 2000)
+        d.name = "Wardrobe"
+        d.states = (0..<states).map { FurnitureState(name: "s\($0)") }
+        return d
+    }
+
+    private func scene(_ defs: [FurnitureDefinition], at positions: [P3]) -> (Project, UUID, [FurnitureInstance]) {
+        var p = Project.empty(name: "S")
+        let lvl = p.levels[0].id
+        p.definitions = defs
+        p.instances = zip(defs, positions).map { FurnitureInstance(definitionId: $0.id, levelId: lvl, name: $0.name, position: $1) }
+        return (p, lvl, p.instances)
+    }
+
+    private let east = V2(1, 0)
+
+    @Test func picksTheNearestInViewAndIgnoresPiecesWithoutStates() {
+        let plain = boxDef(1000, 500, 2000), a = wardrobe(states: 2), b = wardrobe(states: 2)
+        // Eye at the origin looking east; plain is closest, a centre at x = 1500 (1000 mm edge gap), b further.
+        let (p, lvl, insts) = scene([plain, a, b], at: [P3(600, 0, 0), P3(1500, 0, 0), P3(2200, 0, 0)])
+        let hit = WalkFurnitureState.nearest(project: p, levelId: lvl, eye: V2(0, 0), forward: east, reachMm: 1500)
+        #expect(hit?.id == insts[1].id)
+        #expect(abs((hit?.distance ?? 0) - 1000) < 1e-6)
+    }
+
+    @Test func respectsReachAndLevel() {
+        let (p, lvl, _) = scene([wardrobe(states: 2)], at: [P3(2600, 0, 0)])
+        #expect(WalkFurnitureState.nearest(project: p, levelId: lvl, eye: V2(0, 0), forward: east, reachMm: 1500) == nil)
+        #expect(WalkFurnitureState.nearest(project: p, levelId: lvl, eye: V2(1200, 0), forward: east, reachMm: 1500) != nil)
+        #expect(WalkFurnitureState.nearest(project: p, levelId: UUID(), eye: V2(1200, 0), forward: east, reachMm: 1500) == nil)
+    }
+
+    @Test func viewConeAppliesBeyond400ButNotClose() {
+        let (p, lvl, _) = scene([wardrobe(states: 2)], at: [P3(0, 1000, 0)])
+        // Behind the walker's right side: not in view from 1000 mm away looking east ...
+        #expect(WalkFurnitureState.nearest(project: p, levelId: lvl, eye: V2(0, 0), forward: east, reachMm: 1500) == nil)
+        // ... in view when looking at it ...
+        #expect(WalkFurnitureState.nearest(project: p, levelId: lvl, eye: V2(0, 0), forward: V2(0, 1), reachMm: 1500) != nil)
+        // ... and always in reach when standing next to it (centre within 400 mm).
+        #expect(WalkFurnitureState.nearest(project: p, levelId: lvl, eye: V2(0, 700), forward: V2(0, -1), reachMm: 1500) != nil)
+    }
+
+    @Test func hiddenAndLockedPiecesAreSkipped() {
+        func hit(_ p: Project, _ lvl: UUID) -> UUID? {
+            WalkFurnitureState.nearest(project: p, levelId: lvl, eye: V2(0, 0), forward: east, reachMm: 1500)?.id
+        }
+        var (p, lvl, _) = scene([wardrobe(states: 2)], at: [P3(1000, 0, 0)])
+        #expect(hit(p, lvl) != nil)
+        p.instances[0].locked = true
+        #expect(hit(p, lvl) == nil)
+        p.instances[0].locked = false
+        p.levels[0].locked = true
+        #expect(hit(p, lvl) == nil)
+        p.levels[0].locked = false
+        p.instances[0].visible = false
+        #expect(hit(p, lvl) == nil)
+    }
+
+    @Test func cyclesInDefinitionOrderAndWraps() {
+        let d = wardrobe(states: 3)
+        var inst = FurnitureInstance(definitionId: d.id, levelId: UUID(), name: "W", position: P3(0, 0, 0))
+        #expect(WalkFurnitureState.nextStateId(for: inst, definition: d) == d.states[0].id) // base pose
+        inst.stateId = d.states[0].id
+        #expect(WalkFurnitureState.nextStateId(for: inst, definition: d) == d.states[1].id)
+        inst.stateId = d.states[2].id
+        #expect(WalkFurnitureState.nextStateId(for: inst, definition: d) == d.states[0].id)
+        inst.stateId = UUID() // a state that no longer exists
+        #expect(WalkFurnitureState.nextStateId(for: inst, definition: d) == d.states[0].id)
+    }
+
+    @Test func twoStatesToggleAndFewerThanTwoGiveNothing() {
+        let d = wardrobe(states: 2)
+        var inst = FurnitureInstance(definitionId: d.id, levelId: UUID(), name: "W", position: P3(0, 0, 0))
+        inst.stateId = d.states[0].id
+        #expect(WalkFurnitureState.nextStateId(for: inst, definition: d) == d.states[1].id)
+        inst.stateId = d.states[1].id
+        #expect(WalkFurnitureState.nextStateId(for: inst, definition: d) == d.states[0].id)
+        #expect(WalkFurnitureState.nextStateId(for: inst, definition: wardrobe(states: 1)) == nil)
+    }
+}

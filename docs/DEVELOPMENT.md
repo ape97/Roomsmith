@@ -146,7 +146,7 @@ Pinch, rotate and smart zoom are ignored while a mouse button is down (drag, han
 | Click / ⇧ click | Select / toggle selection | same | same | Nothing (no selection, no gizmo; a click captures the mouse) |
 | Hand tool (key H) or Space held | Look only: left drag moves the camera as "Drag on empty space" (⇧ as there); no click selection, no hover, no gizmo, no furniture drag, Delete does nothing; open hand cursor, closed hand while dragging. V or Esc returns to Select. Not in first person (there the click still captures the mouse) | same | same | same |
 | Drag a selected piece of furniture or group (selection of furniture and groups only) | Move over the floor, see below | same | same | not in first person |
-| Keys | | | W S forward / back along the view, A D sideways, E up, Q down, ⇧ faster (3x), ⌥ slower (0.3x) | W S or ↑ ↓ walk, A D sideways, ← → turn, C crouch, E opens the door in view, ⇧ faster, ⌥ slower, Space held walks through walls and furniture (eye height 1600 mm) |
+| Keys | | | W S forward / back along the view, A D sideways, E up, Q down, ⇧ faster (3x), ⌥ slower (0.3x) | W S or ↑ ↓ walk, A D sideways, ← → turn, C crouch, E opens the door or window in view, or switches the furniture piece in view with several states to its next state (undoable), ⇧ faster, ⌥ slower, Space held walks through walls and furniture (eye height 1600 mm) |
 
 **Free** is the fly camera: like first person the `target` of the stored camera is the eye (`CameraRig.eyeIsTarget`), but
 there is no collision, no floor and no eye-height snap. W A S D fly along the view direction (pitch included), Q E move
