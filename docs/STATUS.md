@@ -7,7 +7,7 @@ Overall: **feature complete, pre-release, not published.** All work packages bel
 | Package | Status | Evidence |
 |---|---|---|
 | Data model, millimetre units (`Int64`) | done | `Sources/RoomsmithCore/Model/Entities.swift`, `Units.swift` |
-| Geometry (snap, collision, wall outlines, rooms, dimension chains) | done | `Sources/RoomsmithCore/Geometry/` (`Snap.swift`, `Collision.swift`, `MoveContact.swift`, `WallOutline.swift`, `RoomFinder.swift`, `DimensionChains.swift`) |
+| Geometry (snap, collision incl. open doors as carcass plus door slabs, wall outlines, rooms, dimension chains) | done | `Sources/RoomsmithCore/Geometry/` (`Snap.swift`, `Collision.swift`, `MoveContact.swift`, `WallOutline.swift`, `RoomFinder.swift`, `DimensionChains.swift`) |
 | Meshes, triangulation | done | `Geometry/Meshes.swift`, `Triangulate.swift`; tests in `MeshExportTests.swift` |
 | Markdown persistence, `.roomsmith/` folder format, schema migration | done | `Persistence/ProjectPackage.swift`, `RoomsmithMarkdown+Encode.swift`, `RoomsmithMarkdown+Decode.swift`, `ProjectMigration.swift`; format in [FILE_FORMAT.md](FILE_FORMAT.md) |
 | Command engine, undo/redo, revisions | done | `Commands/Edits*.swift`, `Validator.swift`, `ChangeSet.swift`, `DocumentStore.swift` |

@@ -14,6 +14,46 @@ public struct CollisionIssue: Sendable, Equatable, Codable {
 }
 
 public enum CollisionChecker {
+    /// Radius (mm) around a hinge inside which a swinging part may touch another shape. The model turns a door about
+    /// the middle of its thickness, so on a shared hinge line (two cabinets side by side) or against the side of the
+    /// next carcass the slab reaches a few millimetres into the neighbour; two slabs of 18 mm that cross at 20° share a rhombus reaching about 52 mm from the hinge. A real door does not.
+    public static let hingeRadius = 60.0
+
+    /// The overlap of the swinging part `a` with the convex polygon `b` lies completely within `hingeRadius` of a hinge
+    /// (the hinge of `a`, or `bHinge` when `b` is a swinging part itself). Overlaps farther out are collisions.
+    static func meetsAtHingeOnly(_ a: CollisionPart, _ b: [V2], _ bHinge: V2?) -> Bool {
+        let hinges = [a.hinge, bHinge].compactMap { $0 }
+        guard !hinges.isEmpty else { return false }
+        let common = clipConvex(a.outline, to: b)
+        guard !common.isEmpty else { return true }
+        return common.allSatisfy { q in hinges.contains { simd_length(q - $0) <= hingeRadius } }
+    }
+
+    /// Intersection of two convex counter-clockwise polygons (Sutherland-Hodgman); empty when they do not overlap.
+    static func clipConvex(_ subject: [V2], to clip: [V2]) -> [V2] {
+        func ccw(_ poly: [V2]) -> [V2] {
+            var area = 0.0
+            for i in poly.indices { let q = poly[(i + 1) % poly.count]; area += poly[i].x * q.y - q.x * poly[i].y }
+            return area < 0 ? poly.reversed() : poly
+        }
+        let clip = ccw(clip)
+        var out = ccw(subject)
+        for i in clip.indices {
+            let a = clip[i], b = clip[(i + 1) % clip.count]
+            func side(_ q: V2) -> Double { (b.x - a.x) * (q.y - a.y) - (b.y - a.y) * (q.x - a.x) }
+            let input = out
+            out = []
+            for j in input.indices {
+                let p = input[j], q = input[(j + 1) % input.count]
+                let sp = side(p), sq = side(q)
+                if sp >= 0 { out.append(p) }
+                if (sp >= 0) != (sq >= 0) { out.append(p + (q - p) * (sp / (sp - sq))) }
+            }
+            if out.isEmpty { return [] }
+        }
+        return out
+    }
+
     /// Free pieces neither report nor receive collision warnings and never block a dragged piece: pieces flagged
     /// `allowsOverlap` and flat floor pieces such as rugs (underside on the floor, at most
     /// `WalkCollider.walkOverHeightMm` high). `outsideRooms` is not affected.
@@ -65,6 +105,37 @@ private struct FootItem {
     var z1: Double
     /// Never collides (see `CollisionChecker.isFree`).
     var free: Bool
+    /// The convex outlines of a piece in a moving state (`FurnitureResolver.collisionParts`); empty: `corners` is the shape.
+    /// `corners` stays the hull around all of them (broad phase, standing-on test).
+    var parts: [CollisionPart] = []
+
+    /// Penetration of this piece into a convex polygon: the deepest of its parts.
+    func depth(into poly: [V2]) -> Double? {
+        guard !parts.isEmpty else { return penetration(corners, poly) }
+        var best: Double?
+        for part in parts {
+            guard let d = penetration(part.outline, poly), !CollisionChecker.meetsAtHingeOnly(part, poly, nil) else { continue }
+            best = max(best ?? 0, d)
+        }
+        return best
+    }
+
+    /// Penetration of two pieces: the deepest over all pairs of their parts. An overlap that stays at the hinge of
+    /// a swinging part is no collision (see `CollisionChecker.meetsAtHingeOnly`).
+    func depth(into other: FootItem) -> Double? {
+        guard !parts.isEmpty || !other.parts.isEmpty else { return penetration(corners, other.corners) }
+        let mine = parts.isEmpty ? [CollisionPart(outline: corners, swings: false)] : parts
+        let theirs = other.parts.isEmpty ? [CollisionPart(outline: other.corners, swings: false)] : other.parts
+        var best: Double?
+        for a in mine {
+            for b in theirs {
+                guard let d = penetration(a.outline, b.outline) else { continue }
+                if CollisionChecker.meetsAtHingeOnly(a, b.outline, b.hinge) { continue }
+                best = max(best ?? 0, d)
+            }
+        }
+        return best
+    }
 }
 
 private struct WallSeg {
@@ -190,7 +261,8 @@ private final class Engine {
         let b = bounds(of: cs)
         let it = FootItem(id: inst.id, groupId: inst.groupId ?? groupOf[inst.id], corners: cs, lo: b.lo, hi: b.hi,
                           z0: Double(inst.position.z), z1: Double(inst.position.z + size.height),
-                          free: CollisionChecker.isFree(inst, definition: def))
+                          free: CollisionChecker.isFree(inst, definition: def),
+                          parts: FurnitureResolver.collisionParts(of: inst, definition: def) ?? [])
         cache[ri] = it
         return it
     }
@@ -270,7 +342,7 @@ private final class Engine {
                 for b in s.bands where b.overlaps(z0: it.z0, z1: it.z1) { if b.solid { solid = true } else { passage = true } }
                 guard solid || passage else { continue }
                 for piece in convexPieces(s.poly) {
-                    guard let d = penetration(it.corners, piece) else { continue }
+                    guard let d = it.depth(into: piece) else { continue }
                     if solid { wallDepth = max(wallDepth ?? 0, d) }
                     else if let o = s.opening { record(.blocksOpening, it.id, o.id, d) }
                 }
@@ -284,7 +356,7 @@ private final class Engine {
         for s in info.swings where boxesOverlap(it.lo, it.hi, s.lo, s.hi) {
             let o = s.opening
             guard it.z0 < Double(o.sill + o.height), it.z1 > Double(o.sill) else { continue }
-            if let d = penetration(it.corners, s.poly) { record(.blocksOpening, it.id, o.id, d) }
+            if let d = it.depth(into: s.poly) { record(.blocksOpening, it.id, o.id, d) }
         }
     }
 
@@ -292,7 +364,7 @@ private final class Engine {
         if x.free || y.free { return }
         if let g = x.groupId, g == y.groupId { return }
         guard x.z0 < y.z1, y.z0 < x.z1, boxesOverlap(x.lo, x.hi, y.lo, y.hi) else { return }
-        guard let d = penetration(x.corners, y.corners) else { return }
+        guard let d = x.depth(into: y) else { return }
         // A piece standing on the other one (underside on a component top, footprint inside it) is not an overlap.
         if stands(x, on: iy, y) || stands(y, on: ix, x) { return }
         if ix < iy { record(.furnitureOverlap, x.id, y.id, d) } else { record(.furnitureOverlap, y.id, x.id, d) }
@@ -448,7 +520,12 @@ extension CollisionChecker {
             let it = e.item(ri)
             if it.free || moving.contains(it.id) { continue }
             if let g = it.groupId, movingGroups.contains(g) { continue }
-            out.append(ContactObstacle(polygon: it.corners, z0: it.z0, z1: it.z1, id: it.id))
+            if it.parts.isEmpty {
+                out.append(ContactObstacle(polygon: it.corners, z0: it.z0, z1: it.z1, id: it.id))
+            }
+            for part in it.parts {
+                out.append(ContactObstacle(polygon: part.outline, z0: it.z0, z1: it.z1, id: it.id, swings: part.swings))
+            }
         }
 
         let openings = e.openingsByWall()

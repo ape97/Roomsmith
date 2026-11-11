@@ -39,6 +39,16 @@ public enum Transform {
     public static func translation(_ p: P3) -> simd_double4x4 { translation(Double(p.x), Double(p.y), Double(p.z)) }
 }
 
+/// One convex outline of a piece in a moving state (see `FurnitureResolver.collisionParts`).
+public struct CollisionPart: Sendable, Equatable {
+    /// Convex outline in world mm, counter-clockwise.
+    public var outline: [V2]
+    /// A part that sticks out of the closed footprint (door, drawer, folded-down bed). False: the body.
+    public var swings: Bool
+    /// World position of the hinge (pivot) of a swinging part; nil for the body.
+    public var hinge: V2? = nil
+}
+
 public enum FurnitureResolver {
     /// Effective size of an instance (exact mm).
     public static func size(of inst: FurnitureInstance, definition def: FurnitureDefinition) -> Size3 {
@@ -82,6 +92,52 @@ public enum FurnitureResolver {
         let r = inst.rotationDeg * .pi / 180
         let offset = V2(cos(r) * local.center.x - sin(r) * local.center.y, sin(r) * local.center.x + cos(r) * local.center.y)
         return OrientedRect(center: inst.position.xy.v + offset, halfSize: local.half, rotationDeg: inst.rotationDeg)
+    }
+
+    /// Convex outlines (world mm, counter-clockwise) a piece in a moving state really occupies, instead of the one
+    /// rectangle around everything (`footprint`). The parts that stay inside the closed size rectangle (carcass,
+    /// shelves) form one rectangle; every part that sticks out of it (a swung-open door, a pulled drawer, a folded-down
+    /// bed) is its own convex outline. Two cabinets side by side with open doors therefore touch only where a door
+    /// really reaches the neighbour. Nil when the footprint is a single shape: no state pose, a round piece, or nothing
+    /// sticks out (then `collisionOutline` is already exact).
+    public static func collisionParts(of inst: FurnitureInstance, definition def: FurnitureDefinition) -> [CollisionPart]? {
+        guard let sid = inst.stateId, let state = def.states.first(where: { $0.id == sid }), !state.poses.isEmpty,
+              footprintPolygon(of: inst, definition: def) == nil else { return nil }
+        let base = inst.size ?? def.size
+        let sx = Double(base.width) / Double(max(def.size.width, 1))
+        let sy = Double(base.depth) / Double(max(def.size.depth, 1))
+        let hx = Double(base.width) / 2 + 1, hy = Double(base.depth) / 2 + 1
+        let options = optionOutcome(of: inst, definition: def)
+        var bodyLo = V2(.infinity, .infinity), bodyHi = V2(-.infinity, -.infinity)
+        var extras: [(outline: [V2], hinge: V2)] = []
+        for c in def.components {
+            let p = pose(of: c, state: state)
+            guard p.visible, !options.hidden.contains(c.id) else { continue }
+            let m = componentMatrix(position: p.position, size: p.size, rotation: p.rotation, pivot: c.pivot)
+            var pts: [V2] = []
+            for ix in [-0.5, 0.5] { for iy in [-0.5, 0.5] { for iz in [-0.5, 0.5] {
+                let q = m * SIMD4(ix, iy, iz, 1)
+                pts.append(V2(q.x * sx, q.y * sy))
+            } } }
+            if pts.allSatisfy({ abs($0.x) <= hx && abs($0.y) <= hy }) {
+                for q in pts { bodyLo = V2(min(bodyLo.x, q.x), min(bodyLo.y, q.y)); bodyHi = V2(max(bodyHi.x, q.x), max(bodyHi.y, q.y)) }
+            } else {
+                let hull = FurnitureTopView.convexHull(pts)
+                let pv = c.pivot ?? c.position
+                if hull.count >= 3 { extras.append((hull, V2(Double(pv.x) * sx, Double(pv.y) * sy))) }
+            }
+        }
+        guard !extras.isEmpty else { return nil }
+        var local = extras.map { CollisionPart(outline: $0.outline, swings: true, hinge: $0.hinge) }
+        if bodyLo.x.isFinite, bodyHi.x > bodyLo.x, bodyHi.y > bodyLo.y {
+            local.insert(CollisionPart(outline: [bodyLo, V2(bodyHi.x, bodyLo.y), bodyHi, V2(bodyLo.x, bodyHi.y)], swings: false), at: 0)
+        }
+        let r = inst.rotationDeg * .pi / 180
+        let c = cos(r), s = sin(r), origin = inst.position.xy.v
+        return local.map { part in
+            func world(_ q: V2) -> V2 { origin + V2(c * q.x - s * q.y, s * q.x + c * q.y) }
+            return CollisionPart(outline: part.outline.map(world), swings: part.swings, hinge: part.hinge.map(world))
+        }
     }
 
     /// Number of corners of the polygon that stands for a round footprint (inscribed, so a circle never reaches further

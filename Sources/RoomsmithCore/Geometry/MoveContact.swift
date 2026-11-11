@@ -12,8 +12,10 @@ public struct ContactBody: Sendable, Equatable {
     public var z1: Double
     /// Outline of a round piece (convex, counter-clockwise). nil: the piece is its rectangle.
     public var polygon: [V2]?
-    public init(rect: OrientedRect, z0: Double, z1: Double, polygon: [V2]? = nil) {
-        self.rect = rect; self.z0 = z0; self.z1 = z1; self.polygon = polygon
+    /// A swinging part of the piece (open door); it passes through the swinging parts of other pieces.
+    public var swings: Bool
+    public init(rect: OrientedRect, z0: Double, z1: Double, polygon: [V2]? = nil, swings: Bool = false) {
+        self.rect = rect; self.z0 = z0; self.z1 = z1; self.polygon = polygon; self.swings = swings
     }
 }
 
@@ -23,12 +25,14 @@ public struct ContactObstacle: Sendable, Equatable {
     public var z0: Double
     public var z1: Double
     public var id: UUID?
+    /// A swinging part of a piece in a moving state (open door).
+    public var swings: Bool
     var lo: V2
     var hi: V2
     var normals: [V2]
 
-    public init(polygon: [V2], z0: Double, z1: Double, id: UUID? = nil) {
-        self.polygon = polygon; self.z0 = z0; self.z1 = z1; self.id = id
+    public init(polygon: [V2], z0: Double, z1: Double, id: UUID? = nil, swings: Bool = false) {
+        self.polygon = polygon; self.z0 = z0; self.z1 = z1; self.id = id; self.swings = swings
         var lo = polygon.first ?? V2(0, 0), hi = lo
         for q in polygon.dropFirst() { lo = simd_min(lo, q); hi = simd_max(hi, q) }
         self.lo = lo; self.hi = hi
@@ -64,9 +68,14 @@ public enum MoveContact {
         for inst in p.instances where all.contains(inst.id) && inst.levelId == levelId && inst.visible {
             guard let def = p.definition(inst.definitionId), !CollisionChecker.isFree(inst, definition: def) else { continue }
             let size = FurnitureResolver.size(of: inst, definition: def)
-            out.append(ContactBody(rect: FurnitureResolver.footprint(of: inst, definition: def),
-                                   z0: Double(inst.position.z), z1: Double(inst.position.z + size.height),
-                                   polygon: FurnitureResolver.footprintPolygon(of: inst, definition: def)))
+            let rect = FurnitureResolver.footprint(of: inst, definition: def)
+            let z0 = Double(inst.position.z), z1 = Double(inst.position.z + size.height)
+            // A piece in a moving state moves as its real parts (open doors), not as one rectangle around them.
+            if let parts = FurnitureResolver.collisionParts(of: inst, definition: def) {
+                for part in parts { out.append(ContactBody(rect: rect, z0: z0, z1: z1, polygon: part.outline, swings: part.swings)) }
+            } else {
+                out.append(ContactBody(rect: rect, z0: z0, z1: z1, polygon: FurnitureResolver.footprintPolygon(of: inst, definition: def)))
+            }
         }
         return out
     }
@@ -129,6 +138,7 @@ public enum MoveContact {
         var z0: Double
         var z1: Double
         var center: V2
+        var swings: Bool
     }
 
     private struct Pair {
@@ -172,7 +182,7 @@ public enum MoveContact {
                 let c = m.polygon ?? m.rect.corners
                 let ax = m.rect.axes
                 bodies.append(Body(corners: c, axes: m.polygon.map { MoveContact.unitNormals(of: $0) } ?? [ax.0, ax.1], z0: m.z0, z1: m.z1,
-                                   center: c.reduce(V2(0, 0), +) / Double(c.count)))
+                                   center: c.reduce(V2(0, 0), +) / Double(c.count), swings: m.swings))
             }
             // Broad phase: everything within reach of the movement (the slide can leave the raw line).
             let reach = simd_length(raw) + self.tolerance + 1
@@ -182,6 +192,7 @@ public enum MoveContact {
                 lo -= V2(repeating: reach); hi += V2(repeating: reach)
                 for (oi, o) in obstacles.enumerated() where o.polygon.count >= 3 {
                     guard b.z0 < o.z1, o.z0 < b.z1 else { continue }
+                    if b.swings && o.swings { continue } // open doors of two pieces pass each other (the check still reports deep crossings)
                     guard lo.x <= o.hi.x, o.lo.x <= hi.x, lo.y <= o.hi.y, o.lo.y <= hi.y else { continue }
                     pairs.append(Pair(body: bi, obstacle: oi))
                 }
