@@ -108,6 +108,8 @@ final class SceneRenderer {
     var pendingClick: PendingClick?
     /// Space is held down: temporary Hand tool (look only). Per view; cleared when the focus is lost.
     var spaceHeld = false
+    /// Space pressed while a furniture drag runs: fine move (slow pointer, no snapping or contact stops). See `FineMotion`.
+    var fineHeld = false
     /// Hand state seen at the last `handModeDidChange`, to notice tool changes made elsewhere (toolbar, plan).
     var lastHandActive = false
     /// Measure tool (see SceneRenderer+Measure): the clicked points, the cursor preview and the overlay that draws them.

@@ -39,6 +39,8 @@ struct GizmoDrag {
     var contact: GizmoContact?
     /// Z axis drag of furniture and groups: the heights it is drawn to (see `GizmoVertical`). Nil otherwise.
     var vertical: GizmoVertical?
+    /// Pointer travel along the axis, scaled while Space is held (see `FineMotion`).
+    var motion = FineMotion()
 }
 
 /// Footprints and obstacles of an axis drag, built once when the drag starts.
@@ -295,6 +297,7 @@ extension SceneRenderer {
     }
 
     func mouseUp(point: SIMD2<Double>, shift: Bool) {
+        fineHeld = false  // fine move lasts for one drag; a held Space does not carry into the next press
         lastMousePoint = point
         switch drag {
         case .gizmo:
@@ -456,6 +459,11 @@ extension SceneRenderer {
             model.deleteUnlocked(model.selectionIds)
             return true
         }
+        // Space during a furniture drag or an axis drag: fine move (slow, no snapping) until it is released.
+        if code == KeyCode.space, dragAcceptsFine, modifiers.intersection([.command, .control]).isEmpty {
+            fineHeld = true
+            return true
+        }
         // Space held: temporary Hand tool. H selects the Hand tool, V the Select tool (nothing while a drag runs).
         if code == KeyCode.space, camera.rig.mode != .firstPerson, drag == nil, pendingClick == nil,
            modifiers.intersection([.command, .control, .option]).isEmpty {
@@ -489,10 +497,23 @@ extension SceneRenderer {
         return true
     }
 
+    /// A drag that moves furniture along the floor or an axis is running: Space switches it to fine move.
+    private var dragAcceptsFine: Bool {
+        switch drag {
+        case .furnitureMove: true
+        case .gizmo(let g): g.handle.axis != nil
+        default: false
+        }
+    }
+
     func keyUp(code: UInt16) -> Bool {
         // The key leaves `pressedKeys` in every case: Space may be held both as Hand shortcut and as walk key.
         let wasDown = pressedKeys.remove(code) != nil
         var handled = wasDown
+        if code == KeyCode.space, fineHeld {
+            fineHeld = false
+            handled = true
+        }
         if code == KeyCode.space, spaceHeld {
             spaceHeld = false
             handModeDidChange()
@@ -506,6 +527,7 @@ extension SceneRenderer {
     func releaseInput() {
         let walked = !pressedKeys.isEmpty
         if spaceHeld { spaceHeld = false; handModeDidChange() }
+        fineHeld = false
         pressedKeys.removeAll()
         flight.stop()
         walk.releasePointerLock()
@@ -688,11 +710,14 @@ extension SceneRenderer {
         guard case .gizmo(var g) = drag else { return }
         let r = ray(at: point)
         let settings = model.project.settings
-        let snapOn = settings.snap.enabled && !option && !model.snapSuspended
+        // Space held (fine move) scales the travel along the axis and switches snapping off, like Option.
+        let fine = fineHeld && g.handle.axis != nil
+        let snapOn = settings.snap.enabled && !option && !fine && !model.snapSuspended
         var m = matrix_identity_float4x4
         if let axis = g.handle.axis {
             guard let s = Gizmo.axisParameter(rayOrigin: r.origin, rayDir: r.dir, origin: g.origin, axis: axis) else { return }
-            var delta = Double(SnapEngine.snapDelta(s - g.startParam, grid: settings.snap.grid, enabled: snapOn))
+            let travel = g.motion.advance(raw: s - g.startParam, fine: fine)
+            var delta = Double(SnapEngine.snapDelta(travel, grid: settings.snap.grid, enabled: snapOn))
             var touching = false
             if snapOn, let c = g.contact {
                 // Furniture stops flush on its line (no sliding off the axis) and is pulled onto close faces.
@@ -702,14 +727,15 @@ extension SceneRenderer {
                 delta = simd_dot(res.delta, a)
             }
             if snapOn, let v = g.vertical,
-               let stop = v.contact.stop(near: s - g.startParam, tolerance: contactTolerance(depth: v.depth)) {
+               let stop = v.contact.stop(near: travel, tolerance: contactTolerance(depth: v.depth)) {
                 delta = Double(stop)
                 touching = true
             }
             g.delta = delta
+            g.motion.show(delta)
             m.columns.3 = SIMD4(Float(axis.x * delta), Float(axis.y * delta), Float(axis.z * delta), 1)
             gizmoOrigin = g.origin + axis * delta
-            hudText = "Δ\(g.handle.label) \(Self.signed(delta)) mm" + (touching ? "  (touching)" : "")
+            hudText = "Δ\(g.handle.label) \(Self.signed(delta)) mm" + (touching ? "  (touching)" : "") + (fine ? "  (fine)" : "")
         } else {
             guard let a = Gizmo.ringAngle(rayOrigin: r.origin, rayDir: r.dir, pivot: g.origin, z: g.origin.z) else { return }
             let raw = Gizmo.wrap(a - g.startAngle)

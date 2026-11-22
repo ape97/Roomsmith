@@ -28,6 +28,8 @@ struct PlanMoveDrag {
     var rest: RestingDrag?
     /// Height change of the piece against the start (mm), applied with the move.
     var dz: MM = 0
+    /// Pointer travel, scaled while Space is held (fine move, see `FineMotion`).
+    var motion = FineMotion()
 }
 
 /// What a furniture drag in the plan stops at: the footprints that move and the obstacles they must not enter.

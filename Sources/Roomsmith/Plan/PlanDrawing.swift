@@ -462,6 +462,7 @@ extension PlanNSView {
     }
 
     func hintText() -> String? {
+        if fineMoveActive { return "Fine move: slow, no snapping" }
         if spaceDown { return "Drag to pan" }
         if let hint { return hint }
         switch model.tool {

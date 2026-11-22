@@ -31,6 +31,8 @@ struct FurnitureMoveDrag {
     var delta = V2(0, 0)
     /// Height change of the piece so far (resting on furniture), mm.
     var dz: MM = 0
+    /// Pointer travel on the floor plane, scaled while Space is held (see `FineMotion`).
+    var motion = FineMotion()
 }
 
 extension SceneRenderer {
@@ -117,7 +119,10 @@ extension SceneRenderer {
         guard case .furnitureMove(var f) = drag else { return }
         // A ray that misses the floor keeps the last valid position.
         guard let ground = groundPoint(at: point, z: f.planeZ) else { return }
-        let raw = ground - f.startGround
+        // Space held (fine move) scales the pointer travel and switches snapping, contact stops and resting off like Option.
+        let fine = fineHeld
+        let raw = f.motion.advance(raw: ground - f.startGround, fine: fine)
+        let option = option || fine
         let settings = model.project.settings
         let snapOn = settings.snap.enabled && !option && !model.snapSuspended
         // Option switches resting off, as it does for snapping (the global snap toggle does not).
@@ -140,11 +145,12 @@ extension SceneRenderer {
             f.delta = V2(raw.x.rounded(), raw.y.rounded())
             if let rest = resting { f.dz = rest.z(at: f.delta) - rest.startZ }
         }
+        f.motion.show(f.delta)
         var m = matrix_identity_float4x4
         m.columns.3 = SIMD4(Float(f.delta.x), Float(f.delta.y), Float(f.dz), 1)
         for b in f.bases { b.entity.transform.matrix = m * b.matrix }
         if let o = f.gizmoStart { gizmoOrigin = o + D3(f.delta.x, f.delta.y, Double(f.dz)) }
-        hudText = "Move  X \(Self.signed(f.delta.x)) mm  Y \(Self.signed(f.delta.y)) mm" + (contact ? "  (touching)" : "")
+        hudText = "Move  X \(Self.signed(f.delta.x)) mm  Y \(Self.signed(f.delta.y)) mm" + (contact ? "  (touching)" : "") + (fine ? "  (fine)" : "")
         drag = .furnitureMove(f)
         placeGizmo()
     }

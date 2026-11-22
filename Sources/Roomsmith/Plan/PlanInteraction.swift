@@ -10,9 +10,13 @@ extension PlanNSView {
     func point(_ e: NSEvent) -> CGPoint { convert(e.locationInWindow, from: nil) }
 
     func syncModifiers(_ e: NSEvent) {
-        let alt = e.modifierFlags.contains(.option)
-        if model.snapSuspended != alt { model.snapSuspended = alt }
+        // Option, or Space during a move drag (fine move), switches snapping and contact stops off.
+        let off = e.modifierFlags.contains(.option) || fineMoveActive
+        if model.snapSuspended != off { model.snapSuspended = off }
     }
+
+    /// Space is held while a furniture or object drag runs: slow pointer, nothing snaps (see `FineMotion`).
+    var fineMoveActive: Bool { spaceDown && moveDrag?.started == true }
 
     var snapOn: Bool { project.settings.snap.enabled && !model.snapSuspended }
     /// Pixel-based reach (9 pt, clamped to 20...300 mm), capped by the "Tolerance" setting.
@@ -65,6 +69,7 @@ extension PlanNSView {
         mouse = pt; mouseModel = vp.model(pt)
         if panning { endPan(); return }
         if model.tool == .select { selectUp(e, pt) }
+        syncModifiers(e)  // the drag is over: a held Space no longer keeps snapping off
         needsDisplay = true
     }
 
@@ -279,9 +284,13 @@ extension PlanNSView {
                 prepareDragCollisions(exp)
                 d.contact = contactSetup(for: d.ids)
                 d.rest = RestingDrag(project: project, levelId: levelId, ids: Set(d.ids))
+                moveDrag = d
+                syncModifiers(e)  // Space held before the threshold: fine move applies from the first step
             }
-            let r = moveDelta(d, current: m)
+            let travel = d.motion.advance(raw: m - d.startModel, fine: fineMoveActive)
+            let r = moveDelta(d, current: d.startModel + travel)
             d.delta = r.0; d.guides = r.1; d.dz = r.2
+            d.motion.show(r.0.v)
             moveDrag = d
             updatePreview()
             // Compare split: pulling the selection out of this pane hands it to the other project (drop = copy, ⌘ = move).
@@ -540,7 +549,10 @@ extension PlanNSView {
     override func keyDown(with e: NSEvent) {
         syncModifiers(e)
         if e.keyCode == 49, model.tool != .wall || wallInput.isEmpty { // space
-            if !spaceDown { spaceDown = true; NSCursor.openHand.set() }
+            if !spaceDown {
+                spaceDown = true
+                if moveDrag?.started == true { syncModifiers(e); needsDisplay = true } else { NSCursor.openHand.set() }
+            }
             return
         }
         if e.keyCode == 53 { escape(); return }
@@ -568,6 +580,7 @@ extension PlanNSView {
     override func keyUp(with e: NSEvent) {
         if e.keyCode == 49, spaceDown {
             spaceDown = false
+            syncModifiers(e)
             if panning { panning = false }
             (model.tool == .hand ? NSCursor.openHand : NSCursor.arrow).set()
             window?.invalidateCursorRects(for: self)

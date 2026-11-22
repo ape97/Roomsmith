@@ -174,6 +174,13 @@ With nothing running to cancel (no drag, no undecided press), Esc clears the sel
 window-level fallback (`EscapeClearsSelection`), when the focus sits on another control. Not in text fields, not with
 modifier keys, not in a window with a sheet, not in walk mode.
 
+Fine move: pressing Space while a furniture drag runs (plan, free drag in 3D, X/Y/Z axis arrows of the gizmo; not the
+rotation ring) moves the piece extremely slowly and without any snapping, contact stop or climbing onto furniture, like ⌥
+but with the pointer travel scaled to a tenth (`FineMotion`, `Sources/RoomsmithCore/Interaction/FineMove.swift`, tests
+`FineMoveTests`). Pressing or releasing Space mid-drag never makes the piece jump, not even from a snapped or stopped position
+(the travel is re-based on the offset shown last); the 3D HUD shows "(fine)", the plan shows a hint. A piece resting on furniture drops to the floor height while Space is held (resting is off, like with ⌥). In the plan every
+move drag counts, not only furniture. Space before the press still means the temporary Hand tool, as above. The arrow keys nudge in 1 mm steps already (⇧ 10 mm, ⌘ 100 mm).
+
 Axis drags of furniture and groups (X and Y) also use the contact stop described next, but stay on their line: the piece
 stops flush where it would touch, never slides off the axis.
 
