@@ -181,7 +181,7 @@ Moving furniture over the floor in 3D: press on a piece that is already selected
 an unselected piece or on empty space still drags the camera: click first, then drag). The cursor ray meets the plane
 of the piece's lower edge; rays nearly parallel to the floor (|dir.z| < 0.05) or pointing away keep the last valid
 position, the distance is clamped to 50 m. The piece stops flush at walls (below wall height, door and window openings
-only where the collision check reports them, door swings) and at furniture that overlaps in height, slides along the
+only where the collision check reports them, door swings: a quarter disc around the hinge, `CollisionChecker.swingSector`) and at furniture that overlaps in height, slides along the
 touched face, is pulled flush when it ends within the snap tolerance of a face (about 9 points on screen, 20 to 300 mm,
 at most the project's snap tolerance), and goes through an obstacle when pushed about 200 mm beyond the touching position
 (stateless: pulling back below that snaps again). Walls follow "Snap to walls", furniture "Snap to objects". ⌥ or snap

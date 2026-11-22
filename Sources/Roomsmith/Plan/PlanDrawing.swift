@@ -59,7 +59,7 @@ extension PlanNSView {
             switch r.kind {
             case .room: drawRoom(ctx, sc.rooms[r.index])
             case .wall: drawWall(ctx, sc.walls[r.index], hatch: hatch)
-            case .opening: drawOpening(ctx, sc.openings[r.index])
+            case .opening: drawOpening(ctx, sc.openings[r.index], warned: project.settings.collisionWarnings && sc.colliding.contains(sc.openings[r.index].opening.id))
             case .foot: drawFoot(ctx, sc.feet[r.index], sc, avoiding: labelBoxes)
             case .group: drawGroup(ctx, sc.groups[r.index])
             case .dim: drawDimension(ctx, sc.dims[r.index])
@@ -227,9 +227,10 @@ extension PlanNSView {
 
     // MARK: Openings
 
-    func drawOpening(_ ctx: CGContext, _ o: PlanOpeningItem, ghost: Bool = false) {
+    func drawOpening(_ ctx: CGContext, _ o: PlanOpeningItem, ghost: Bool = false, warned: Bool = false) {
         let alpha: CGFloat = ghost ? 0.55 : 1
-        let ink = PlanColors.ink.withAlphaComponent(alpha)
+        // A door that a piece blocks is drawn red, like the piece.
+        let ink = (warned ? PlanColors.collision : PlanColors.ink).withAlphaComponent(alpha)
         ctx.setStrokeColor(ink.cgColor)
         ctx.setLineWidth(1.25)
         // Jambs

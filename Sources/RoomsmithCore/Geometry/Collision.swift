@@ -29,6 +29,22 @@ public enum CollisionChecker {
         return common.allSatisfy { q in hinges.contains { simd_length(q - $0) <= hingeRadius } }
     }
 
+    /// The area a door leaf sweeps: a quarter disc around the hinge from the closed leaf (`along` the wall, towards
+    /// the other jamb) to the leaf opened 90 degrees (`out`, the opening side). Convex; the arc is a polygon that
+    /// lies just outside the circle (circumscribed), so a piece the leaf could touch is never missed. The corners of
+    /// the bounding square, which the leaf never reaches, are no part of it.
+    static func swingSector(hinge: V2, along: V2, out: V2, radius: Double) -> [V2] {
+        let steps = 9
+        let r = radius / cos(Double.pi / 4 / Double(steps))
+        var pts = [hinge, hinge + along * radius]
+        for i in 0..<steps {
+            let t = (Double(i) + 0.5) / Double(steps) * Double.pi / 2
+            pts.append(hinge + along * (r * cos(t)) + out * (r * sin(t)))
+        }
+        pts.append(hinge + out * radius)
+        return pts
+    }
+
     /// Intersection of two convex counter-clockwise polygons (Sutherland-Hodgman); empty when they do not overlap.
     static func clipConvex(_ subject: [V2], to clip: [V2]) -> [V2] {
         func ccw(_ poly: [V2]) -> [V2] {
@@ -71,14 +87,15 @@ public enum CollisionChecker {
     static func isFlatOnFloor(z: Double, height: Double) -> Bool { z <= 0 && height <= WalkCollider.walkOverHeightMm }
 
     /// Furniture ids that count as warned (tinted): overlap, wall and blocked-opening issues only.
-    /// `outsideRooms` alone never warns. `b` is added only if it is a furniture instance of the project.
+    /// `outsideRooms` alone never warns. `b` is added only if it is a furniture instance of the project, or the door
+    /// a piece blocks (so the door shows red too and the warning can be traced to it).
     public static func warnedIds(_ issues: [CollisionIssue], in p: Project) -> Set<UUID> {
         var out = Set<UUID>()
         for issue in issues {
             switch issue.kind {
             case .furnitureOverlap, .furnitureWall, .blocksOpening:
                 out.insert(issue.a)
-                if let b = issue.b, p.instance(b) != nil { out.insert(b) }
+                if let b = issue.b, p.instance(b) != nil || (issue.kind == .blocksOpening && p.opening(b) != nil) { out.insert(b) }
             case .outsideRooms: break
             }
         }
@@ -305,9 +322,8 @@ private final class Engine {
             let side = o.inward ? 1.0 : -1.0
             let n = ax.normal * side
             let s0 = Double(o.offset) - Double(o.width) / 2, s1 = Double(o.offset) + Double(o.width) / 2
-            let a = w.start.v + ax.dir * s0 + n * h, b = w.start.v + ax.dir * s1 + n * h
-            let depth = n * Double(o.width)
-            let poly = [a, b, b + depth, a + depth]
+            let poly = CollisionChecker.swingSector(hinge: w.start.v + ax.dir * (o.flipped ? s1 : s0) + n * h,
+                                                    along: ax.dir * (o.flipped ? -1.0 : 1.0), out: n, radius: Double(o.width))
             let bb = bounds(of: poly)
             swings.append(Swing(opening: o, poly: poly, lo: bb.lo, hi: bb.hi))
         }

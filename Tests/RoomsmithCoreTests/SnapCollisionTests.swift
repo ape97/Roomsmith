@@ -250,6 +250,29 @@ private func minFaceDistance(_ inst: FurnitureInstance, _ def: FurnitureDefiniti
         #expect(beside.map(\.kind) == [.furnitureWall])
     }
 
+    @Test func doorSwingIsAQuarterDiscAroundTheHinge() {
+        var (p, lvl) = makeProject()
+        let wall = Wall(levelId: lvl, start: P2(0, 0), end: P2(4000, 0), thickness: 100)
+        p.walls = [wall]
+        var door = Opening(wallId: wall.id, kind: .door, offset: 2000, width: 900, height: 2100, sill: 0)
+        door.inward = true // swings to +Y, hinge at x 1550 (not flipped), wall face at y 50
+        p.openings = [door]
+        // In the corner of the 900 x 900 square far from the hinge: the leaf never reaches it.
+        _ = place(&p, box(100, 100, 800), lvl, 2400, 850)
+        #expect(CollisionChecker.check(p, levelId: lvl).isEmpty)
+        // The same corner is swept when the hinge is on that side.
+        p.openings[0].flipped = true
+        #expect(CollisionChecker.check(p, levelId: lvl).contains { $0.kind == .blocksOpening })
+        // On the hinge side the leaf is not there any more.
+        p.instances[0].position = P3(1600, 850, 0)
+        #expect(CollisionChecker.check(p, levelId: lvl).isEmpty)
+        p.openings[0].flipped = false
+        let blocked = CollisionChecker.check(p, levelId: lvl)
+        #expect(blocked.contains { $0.kind == .blocksOpening })
+        // The blocked door is warned as well, so it shows red next to the piece.
+        #expect(CollisionChecker.warnedIds(blocked, in: p).contains(door.id))
+    }
+
     @Test func doorSwingAreaIsBlocked() {
         var (p, lvl) = makeProject()
         let wall = Wall(levelId: lvl, start: P2(0, 0), end: P2(4000, 0), thickness: 100)

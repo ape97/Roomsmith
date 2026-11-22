@@ -954,7 +954,7 @@ final class SceneRenderer {
         }
         // Objects that now have a different look from their stored state.
         if cs.contains(kind: .group) { refreshSelectionTints() }
-        colliding.formIntersection(Set(p.instances.map(\.id)))
+        colliding.formIntersection(Set(p.instances.map(\.id)).union(p.openings.map(\.id)))
 
         if cs.settingsChanged, p.settings.collisionWarnings != lastCollisionWarnings {
             lastCollisionWarnings = p.settings.collisionWarnings
